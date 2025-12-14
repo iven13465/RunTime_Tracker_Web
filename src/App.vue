@@ -59,26 +59,16 @@ const defaultBackground = DEFAULT_BACKGROUND_URL
     ? `url('${DEFAULT_BACKGROUND_URL}')`
     : 'linear-gradient(135deg, #e0e7ff 0%, #fef3c7 100%)';
 
-// 背景配置
-const backgroundOptions = [
-  {
-    label: DEFAULT_BACKGROUND_URL ? '默认背景' : '默认背景（填入 URL 后生效）',
-    value: defaultBackground
-  }
-];
-
-const selectedBackground = ref(defaultBackground);
-const customBackground = ref('');
-const uploadedImageUrl = ref('');
-const fileInputRef = ref(null);
-
 const backgroundStyle = computed(() => ({
-  backgroundImage: selectedBackground.value,
+  backgroundImage: defaultBackground,
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
   backgroundAttachment: 'fixed',
   backgroundPosition: 'center'
 }));
+
+// 樱花数量
+const sakuraPetals = Array.from({ length: 18 }, (_, index) => index);
 
 const OVERVIEW_DEVICE = {
   device: 'summary',
@@ -308,6 +298,9 @@ onUnmounted(() => {
   <!-- 实际内容：只在配置加载完成后显示 -->
   <div v-else class="min-h-screen relative overflow-hidden" :style="backgroundStyle">
     <div class="absolute inset-0 bg-gradient-to-br from-white/50 via-white/20 to-blue-200/30 dark:from-slate-950/70 dark:via-slate-900/70 dark:to-indigo-950/60"></div>
+    <div class="sakura" aria-hidden="true">
+      <span v-for="petal in sakuraPetals" :key="petal" class="sakura__petal" :style="{ '--sakura-offset': petal + 1 }"></span>
+    </div>
     <div class="max-w-7xl mx-auto px-4 relative z-10 pb-10">
       <Header></Header>
 
@@ -566,5 +559,93 @@ onUnmounted(() => {
   opacity: 0;
   max-height: 0;
   transform: translateY(-10px);
+}
+
+.sakura {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.sakura__petal {
+  position: absolute;
+  top: -10%;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #ffb7c5 35%, #f7adc0 50%, #e58aaa 70%, rgba(255, 183, 197, 0.2) 100%);
+  border-radius: 65% 35% 70% 30%;
+  filter: drop-shadow(0 4px 10px rgba(235, 99, 135, 0.35));
+  animation: sakura-fall linear infinite;
+  opacity: 0.85;
+}
+
+.sakura__petal::after,
+.sakura__petal::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  border-radius: inherit;
+  opacity: 0.7;
+}
+
+.sakura__petal::before {
+  transform: rotate(40deg) scale(0.8);
+  left: -30%;
+}
+
+.sakura__petal::after {
+  transform: rotate(-30deg) scale(0.75);
+  right: -20%;
+}
+
+.sakura__petal:nth-child(odd) {
+  animation-duration: 14s;
+}
+
+.sakura__petal:nth-child(even) {
+  animation-duration: 18s;
+}
+
+.sakura__petal:nth-child(3n) {
+  animation-duration: 20s;
+  animation-delay: 1s;
+  transform: scale(0.9);
+}
+
+.sakura__petal:nth-child(5n) {
+  animation-duration: 16s;
+  animation-delay: 2s;
+  transform: scale(1.1);
+}
+
+.sakura__petal:nth-child(7n) {
+  animation-duration: 22s;
+  animation-delay: 3s;
+  transform: scale(0.8);
+}
+
+.sakura__petal:nth-child(n) {
+  left: calc(5% * var(--sakura-offset, 1));
+}
+
+@keyframes sakura-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotateZ(0deg) rotateY(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(-8vw, 50vh, 0) rotateZ(120deg) rotateY(40deg);
+  }
+  100% {
+    transform: translate3d(12vw, 110vh, 0) rotateZ(320deg) rotateY(140deg);
+    opacity: 0;
+  }
 }
 </style>

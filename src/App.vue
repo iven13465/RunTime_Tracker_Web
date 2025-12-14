@@ -52,6 +52,34 @@ const toast = ref({
   type: 'error'
 });
 
+// 默认背景（请在此填入默认图片 URL）
+const DEFAULT_BACKGROUND_URL = '';
+
+const defaultBackground = DEFAULT_BACKGROUND_URL
+    ? `url('${DEFAULT_BACKGROUND_URL}')`
+    : 'linear-gradient(135deg, #e0e7ff 0%, #fef3c7 100%)';
+
+// 背景配置
+const backgroundOptions = [
+  {
+    label: DEFAULT_BACKGROUND_URL ? '默认背景' : '默认背景（填入 URL 后生效）',
+    value: defaultBackground
+  }
+];
+
+const selectedBackground = ref(defaultBackground);
+const customBackground = ref('');
+const uploadedImageUrl = ref('');
+const fileInputRef = ref(null);
+
+const backgroundStyle = computed(() => ({
+  backgroundImage: selectedBackground.value,
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+  backgroundAttachment: 'fixed',
+  backgroundPosition: 'center'
+}));
+
 const OVERVIEW_DEVICE = {
   device: 'summary',
   currentApp: '不告诉你'
@@ -75,6 +103,49 @@ const showToast = (message, type = 'error') => {
   setTimeout(() => {
     toast.value.show = false;
   }, 3000);
+};
+
+// 设置背景
+const setBackground = (value) => {
+  selectedBackground.value = value;
+};
+
+const applyCustomBackground = () => {
+  if (!customBackground.value.trim()) return;
+
+  const input = customBackground.value.trim();
+  // 如果用户直接输入了 url 地址，自动补全 url() 格式
+  if (input.startsWith('http')) {
+    setBackground(`url('${input}')`);
+  } else {
+    setBackground(input);
+  }
+};
+
+const handleBackgroundFile = (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  uploadedImageUrl.value = objectUrl;
+  setBackground(`url('${objectUrl}')`);
+  customBackground.value = '';
+
+  // reset input value to allow re-uploading the same file
+  event.target.value = '';
+};
+
+const resetBackground = () => {
+  selectedBackground.value = defaultBackground;
+  customBackground.value = '';
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+    uploadedImageUrl.value = '';
+  }
 };
 
 // 获取客户端IP
@@ -186,6 +257,10 @@ onUnmounted(() => {
   if (refreshInterval.value) {
     clearInterval(refreshInterval.value);
   }
+
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+  }
 });
 </script>
 
@@ -231,17 +306,63 @@ onUnmounted(() => {
   </div>
 
   <!-- 实际内容：只在配置加载完成后显示 -->
-  <div v-else class="bg-gray-100 min-h-screen rounded-lg dark:bg-[#1e2022]">
-    <div class="max-w-7xl mx-auto px-4">
+  <div v-else class="min-h-screen relative overflow-hidden" :style="backgroundStyle">
+    <div class="absolute inset-0 bg-gradient-to-br from-white/50 via-white/20 to-blue-200/30 dark:from-slate-950/70 dark:via-slate-900/70 dark:to-indigo-950/60"></div>
+    <div class="max-w-7xl mx-auto px-4 relative z-10 pb-10">
       <Header></Header>
+
+      <!-- 背景自定义 -->
+      <div class="glass-card p-4 md:p-5 mb-6 border border-white/30 dark:border-white/10">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div class="space-y-1">
+            <p class="text-xs uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">界面风格</p>
+            <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">自定义背景</h2>
+            <p class="text-sm text-slate-600 dark:text-slate-300">选择喜欢的底图，卡片会半透明并带有模糊效果。</p>
+          </div>
+          <div class="flex flex-wrap gap-2 justify-end">
+            <button
+                v-for="opt in backgroundOptions"
+                :key="opt.label"
+                @click="setBackground(opt.value)"
+                class="relative w-28 h-16 rounded-xl overflow-hidden border border-white/40 dark:border-white/10 transition-transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-white/60"
+                :aria-label="`应用${opt.label}`"
+                :style="{ backgroundImage: opt.value, backgroundSize: 'cover', backgroundPosition: 'center' }"
+            >
+              <span class="absolute inset-0 bg-white/15 dark:bg-black/30"></span>
+              <span class="relative text-xs font-semibold text-white drop-shadow-md">{{ opt.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-col sm:flex-row gap-3">
+          <input
+              v-model="customBackground"
+              type="text"
+              class="w-full rounded-lg glass-input px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200/80 dark:focus:ring-indigo-500/50"
+              placeholder="输入图片链接或 CSS 渐变，例如 url(https://...) 或 linear-gradient(...)"
+          >
+          <div class="flex flex-wrap gap-2 sm:w-auto">
+            <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleBackgroundFile"
+            />
+            <button @click="() => fileInputRef?.click()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold shadow-md hover:bg-emerald-700 transition-colors whitespace-nowrap">上传本地图片</button>
+            <button @click="applyCustomBackground" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition-colors whitespace-nowrap">应用链接</button>
+            <button @click="resetBackground" class="px-4 py-2 rounded-lg border border-white/50 text-slate-700 dark:text-slate-200 dark:border-white/10 hover:bg-white/40 dark:hover:bg-white/5 transition-colors whitespace-nowrap">重置</button>
+          </div>
+        </div>
+      </div>
 
       <div class="flex flex-col lg:flex-row gap-6 pb-6">
         <!-- 左侧模块区 -->
         <div class="space-y-6">
           <!-- 设备统计卡片 -->
-          <div v-if="showDeviceCount" class="bg-white rounded-lg not-dark:shadow-md p-6 dark:bg-[#181a1b]">
+          <div v-if="showDeviceCount" class="glass-card p-6">
             <div class="grid grid-cols-2 gap-4">
-              <div class="border border-gray-200 dark:border-[#384456] rounded-lg p-4 text-center not-dark:shadow-md">
+              <div class="glass-tile p-4 text-center">
                 <h3 class="text-gray-500 text-sm font-medium flex items-center justify-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -250,7 +371,7 @@ onUnmounted(() => {
                 </h3>
                 <p class="text-2xl font-bold mt-2">{{ devices.filter(d => d.device !== 'summary').length }}</p>
               </div>
-              <div class="border border-gray-200 dark:border-[#384456] rounded-lg p-4 text-center not-dark:shadow-md">
+              <div class="glass-tile p-4 text-center">
                 <h3 class="text-gray-500 text-sm font-medium flex items-center justify-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
@@ -302,7 +423,7 @@ onUnmounted(() => {
 
         <!-- 右侧统计 -->
         <div class="flex-1 min-w-0">
-          <div class="bg-white rounded-lg not-dark:shadow-md p-6 sticky top-40 dark:bg-[#181a1b]">
+          <div class="glass-card p-6 sticky top-40 relative overflow-hidden">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-semibold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

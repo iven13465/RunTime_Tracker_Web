@@ -195,7 +195,7 @@ const timezoneDisplay = computed(() => {
 
 <template>
   <div class="flex flex-col justify-between">
-    <div class="bg-white dark:bg-[#181a1b] rounded-lg p-4 mt-5 border-gray-200 dark:border-gray-800 not-dark:shadow-md mb-6 transition-all duration-300">
+    <div class="glass-card p-4 mt-5 mb-6 transition-all duration-300">
       <!-- 顶部选择器区域 -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">

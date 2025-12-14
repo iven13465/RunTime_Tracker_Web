@@ -52,28 +52,25 @@ const toast = ref({
   type: 'error'
 });
 
+// 默认背景（请在此填入默认图片 URL）
+const DEFAULT_BACKGROUND_URL = '';
+
+const defaultBackground = DEFAULT_BACKGROUND_URL
+    ? `url('${DEFAULT_BACKGROUND_URL}')`
+    : 'linear-gradient(135deg, #e0e7ff 0%, #fef3c7 100%)';
+
 // 背景配置
 const backgroundOptions = [
   {
-    label: '晨曦渐变',
-    value: 'linear-gradient(135deg, #d8e8ff 0%, #f7e6ff 45%, #d4f1ff 100%)'
-  },
-  {
-    label: '极光蓝紫',
-    value: 'linear-gradient(135deg, #2F80ED 0%, #6C5CE7 50%, #a88bff 100%)'
-  },
-  {
-    label: '薄荷清爽',
-    value: 'linear-gradient(135deg, #d8fff2 0%, #b3ffe0 40%, #c4e1ff 100%)'
-  },
-  {
-    label: '星空深色',
-    value: 'linear-gradient(135deg, #0b1224 0%, #111827 50%, #1f2937 100%)'
+    label: DEFAULT_BACKGROUND_URL ? '默认背景' : '默认背景（填入 URL 后生效）',
+    value: defaultBackground
   }
 ];
 
-const selectedBackground = ref(backgroundOptions[0].value);
+const selectedBackground = ref(defaultBackground);
 const customBackground = ref('');
+const uploadedImageUrl = ref('');
+const fileInputRef = ref(null);
 
 const backgroundStyle = computed(() => ({
   backgroundImage: selectedBackground.value,
@@ -125,9 +122,30 @@ const applyCustomBackground = () => {
   }
 };
 
-const resetBackground = () => {
-  selectedBackground.value = backgroundOptions[0].value;
+const handleBackgroundFile = (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  uploadedImageUrl.value = objectUrl;
+  setBackground(`url('${objectUrl}')`);
   customBackground.value = '';
+
+  // reset input value to allow re-uploading the same file
+  event.target.value = '';
+};
+
+const resetBackground = () => {
+  selectedBackground.value = defaultBackground;
+  customBackground.value = '';
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+    uploadedImageUrl.value = '';
+  }
 };
 
 // 获取客户端IP
@@ -239,6 +257,10 @@ onUnmounted(() => {
   if (refreshInterval.value) {
     clearInterval(refreshInterval.value);
   }
+
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+  }
 });
 </script>
 
@@ -319,8 +341,16 @@ onUnmounted(() => {
               class="w-full rounded-lg glass-input px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200/80 dark:focus:ring-indigo-500/50"
               placeholder="输入图片链接或 CSS 渐变，例如 url(https://...) 或 linear-gradient(...)"
           >
-          <div class="flex gap-2 sm:w-auto">
-            <button @click="applyCustomBackground" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition-colors whitespace-nowrap">应用背景</button>
+          <div class="flex flex-wrap gap-2 sm:w-auto">
+            <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleBackgroundFile"
+            />
+            <button @click="() => fileInputRef?.click()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold shadow-md hover:bg-emerald-700 transition-colors whitespace-nowrap">上传本地图片</button>
+            <button @click="applyCustomBackground" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition-colors whitespace-nowrap">应用链接</button>
             <button @click="resetBackground" class="px-4 py-2 rounded-lg border border-white/50 text-slate-700 dark:text-slate-200 dark:border-white/10 hover:bg-white/40 dark:hover:bg-white/5 transition-colors whitespace-nowrap">重置</button>
           </div>
         </div>

@@ -52,6 +52,24 @@ const toast = ref({
   type: 'error'
 });
 
+// 默认背景（请在此填入默认图片 URL）
+const DEFAULT_BACKGROUND_URL = '';
+
+const defaultBackground = DEFAULT_BACKGROUND_URL
+    ? `url('${DEFAULT_BACKGROUND_URL}')`
+    : 'linear-gradient(135deg, #e0e7ff 0%, #fef3c7 100%)';
+
+const backgroundStyle = computed(() => ({
+  backgroundImage: defaultBackground,
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+  backgroundAttachment: 'fixed',
+  backgroundPosition: 'center'
+}));
+
+// 樱花数量
+const sakuraPetals = Array.from({ length: 18 }, (_, index) => index);
+
 const OVERVIEW_DEVICE = {
   device: 'summary',
   currentApp: '不告诉你'
@@ -231,17 +249,21 @@ onUnmounted(() => {
   </div>
 
   <!-- 实际内容：只在配置加载完成后显示 -->
-  <div v-else class="bg-gray-100 min-h-screen rounded-lg dark:bg-[#1e2022]">
-    <div class="max-w-7xl mx-auto px-4">
+  <div v-else class="min-h-screen relative overflow-hidden" :style="backgroundStyle">
+    <div class="absolute inset-0 bg-gradient-to-br from-white/50 via-white/20 to-blue-200/30 dark:from-slate-950/70 dark:via-slate-900/70 dark:to-indigo-950/60"></div>
+    <div class="sakura" aria-hidden="true">
+      <span v-for="petal in sakuraPetals" :key="petal" class="sakura__petal" :style="{ '--sakura-offset': petal + 1 }"></span>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 relative z-10 pb-10">
       <Header></Header>
 
       <div class="flex flex-col lg:flex-row gap-6 pb-6">
         <!-- 左侧模块区 -->
         <div class="space-y-6">
           <!-- 设备统计卡片 -->
-          <div v-if="showDeviceCount" class="bg-white rounded-lg not-dark:shadow-md p-6 dark:bg-[#181a1b]">
+          <div v-if="showDeviceCount" class="glass-card p-6">
             <div class="grid grid-cols-2 gap-4">
-              <div class="border border-gray-200 dark:border-[#384456] rounded-lg p-4 text-center not-dark:shadow-md">
+              <div class="glass-tile p-4 text-center">
                 <h3 class="text-gray-500 text-sm font-medium flex items-center justify-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -250,7 +272,7 @@ onUnmounted(() => {
                 </h3>
                 <p class="text-2xl font-bold mt-2">{{ devices.filter(d => d.device !== 'summary').length }}</p>
               </div>
-              <div class="border border-gray-200 dark:border-[#384456] rounded-lg p-4 text-center not-dark:shadow-md">
+              <div class="glass-tile p-4 text-center">
                 <h3 class="text-gray-500 text-sm font-medium flex items-center justify-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
@@ -302,7 +324,7 @@ onUnmounted(() => {
 
         <!-- 右侧统计 -->
         <div class="flex-1 min-w-0">
-          <div class="bg-white rounded-lg not-dark:shadow-md p-6 sticky top-40 dark:bg-[#181a1b]">
+          <div class="glass-card p-6 sticky top-40 relative overflow-hidden">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-semibold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -445,5 +467,93 @@ onUnmounted(() => {
   opacity: 0;
   max-height: 0;
   transform: translateY(-10px);
+}
+
+.sakura {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.sakura__petal {
+  position: absolute;
+  top: -10%;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #ffb7c5 35%, #f7adc0 50%, #e58aaa 70%, rgba(255, 183, 197, 0.2) 100%);
+  border-radius: 65% 35% 70% 30%;
+  filter: drop-shadow(0 4px 10px rgba(235, 99, 135, 0.35));
+  animation: sakura-fall linear infinite;
+  opacity: 0.85;
+}
+
+.sakura__petal::after,
+.sakura__petal::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  border-radius: inherit;
+  opacity: 0.7;
+}
+
+.sakura__petal::before {
+  transform: rotate(40deg) scale(0.8);
+  left: -30%;
+}
+
+.sakura__petal::after {
+  transform: rotate(-30deg) scale(0.75);
+  right: -20%;
+}
+
+.sakura__petal:nth-child(odd) {
+  animation-duration: 14s;
+}
+
+.sakura__petal:nth-child(even) {
+  animation-duration: 18s;
+}
+
+.sakura__petal:nth-child(3n) {
+  animation-duration: 20s;
+  animation-delay: 1s;
+  transform: scale(0.9);
+}
+
+.sakura__petal:nth-child(5n) {
+  animation-duration: 16s;
+  animation-delay: 2s;
+  transform: scale(1.1);
+}
+
+.sakura__petal:nth-child(7n) {
+  animation-duration: 22s;
+  animation-delay: 3s;
+  transform: scale(0.8);
+}
+
+.sakura__petal:nth-child(n) {
+  left: calc(5% * var(--sakura-offset, 1));
+}
+
+@keyframes sakura-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotateZ(0deg) rotateY(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(-8vw, 50vh, 0) rotateZ(120deg) rotateY(40deg);
+  }
+  100% {
+    transform: translate3d(12vw, 110vh, 0) rotateZ(320deg) rotateY(140deg);
+    opacity: 0;
+  }
 }
 </style>

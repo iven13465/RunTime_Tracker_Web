@@ -95,6 +95,49 @@ const showToast = (message, type = 'error') => {
   }, 3000);
 };
 
+// 设置背景
+const setBackground = (value) => {
+  selectedBackground.value = value;
+};
+
+const applyCustomBackground = () => {
+  if (!customBackground.value.trim()) return;
+
+  const input = customBackground.value.trim();
+  // 如果用户直接输入了 url 地址，自动补全 url() 格式
+  if (input.startsWith('http')) {
+    setBackground(`url('${input}')`);
+  } else {
+    setBackground(input);
+  }
+};
+
+const handleBackgroundFile = (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  uploadedImageUrl.value = objectUrl;
+  setBackground(`url('${objectUrl}')`);
+  customBackground.value = '';
+
+  // reset input value to allow re-uploading the same file
+  event.target.value = '';
+};
+
+const resetBackground = () => {
+  selectedBackground.value = defaultBackground;
+  customBackground.value = '';
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+    uploadedImageUrl.value = '';
+  }
+};
+
 // 获取客户端IP
 const fetchClientIp = async () => {
   try {
@@ -204,6 +247,10 @@ onUnmounted(() => {
   if (refreshInterval.value) {
     clearInterval(refreshInterval.value);
   }
+
+  if (uploadedImageUrl.value) {
+    URL.revokeObjectURL(uploadedImageUrl.value);
+  }
 });
 </script>
 
@@ -256,6 +303,51 @@ onUnmounted(() => {
     </div>
     <div class="max-w-7xl mx-auto px-4 relative z-10 pb-10">
       <Header></Header>
+
+      <!-- 背景自定义 -->
+      <div class="glass-card p-4 md:p-5 mb-6 border border-white/30 dark:border-white/10">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div class="space-y-1">
+            <p class="text-xs uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">界面风格</p>
+            <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">自定义背景</h2>
+            <p class="text-sm text-slate-600 dark:text-slate-300">选择喜欢的底图，卡片会半透明并带有模糊效果。</p>
+          </div>
+          <div class="flex flex-wrap gap-2 justify-end">
+            <button
+                v-for="opt in backgroundOptions"
+                :key="opt.label"
+                @click="setBackground(opt.value)"
+                class="relative w-28 h-16 rounded-xl overflow-hidden border border-white/40 dark:border-white/10 transition-transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-white/60"
+                :aria-label="`应用${opt.label}`"
+                :style="{ backgroundImage: opt.value, backgroundSize: 'cover', backgroundPosition: 'center' }"
+            >
+              <span class="absolute inset-0 bg-white/15 dark:bg-black/30"></span>
+              <span class="relative text-xs font-semibold text-white drop-shadow-md">{{ opt.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-col sm:flex-row gap-3">
+          <input
+              v-model="customBackground"
+              type="text"
+              class="w-full rounded-lg glass-input px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200/80 dark:focus:ring-indigo-500/50"
+              placeholder="输入图片链接或 CSS 渐变，例如 url(https://...) 或 linear-gradient(...)"
+          >
+          <div class="flex flex-wrap gap-2 sm:w-auto">
+            <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleBackgroundFile"
+            />
+            <button @click="() => fileInputRef?.click()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold shadow-md hover:bg-emerald-700 transition-colors whitespace-nowrap">上传本地图片</button>
+            <button @click="applyCustomBackground" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition-colors whitespace-nowrap">应用链接</button>
+            <button @click="resetBackground" class="px-4 py-2 rounded-lg border border-white/50 text-slate-700 dark:text-slate-200 dark:border-white/10 hover:bg-white/40 dark:hover:bg-white/5 transition-colors whitespace-nowrap">重置</button>
+          </div>
+        </div>
+      </div>
 
       <div class="flex flex-col lg:flex-row gap-6 pb-6">
         <!-- 左侧模块区 -->

@@ -1,16 +1,70 @@
 body {
-    background-color: #f5f5f5; /* 例如 #f5f5f5 */
+    background-color: #e7ecf7;
+    color: #0f172a;
 }
 
 @media (prefers-color-scheme: dark) {
     body {
-        background-color: #111827; /* gray-900 */
-        color: #f3f4f6; /* gray-100 */
+        background-color: #0b1220;
+        color: #e5e7eb;
     }
 }
+
 .dark {
     color-scheme: dark;
 }
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 1rem;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12);
+}
+
+.dark .glass-card {
+    background: rgba(17, 24, 39, 0.65);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+}
+
+.glass-tile {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 0.9rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.dark .glass-tile {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.glass-input {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #0f172a;
+}
+
+.glass-input::placeholder {
+    color: #475569;
+}
+
+.dark .glass-input {
+    background: rgba(17, 24, 39, 0.65);
+    color: #e5e7eb;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass-input::placeholder {
+    color: #94a3b8;
+}
+
 .dark .progress-bar {
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }

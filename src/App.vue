@@ -9,6 +9,11 @@ import DateSelector from "./components/DateSelector.vue";
 import { pageConfig } from "./composables/pageConfig.js"
 import Header from "./components/Header.vue";
 
+// ===== 访问密码配置 =====
+// 访问密码种子读取自 public/auth/password-seed.json，请在该文件填入你的种子字符串
+const PASSWORD_FILE_PATH = '/auth/password-seed.json';
+const PASSWORD_INTERVAL_MS = 10 * 60 * 1000;
+
 // ===== 配置管理 =====
 const { pageConfigs, isLoading: configLoading, fetchFlags } = pageConfig();
 
@@ -51,6 +56,115 @@ const toast = ref({
   message: '',
   type: 'error'
 });
+
+// 访问密码状态
+const isAuthenticated = ref(false);
+const passwordInput = ref('');
+const passwordError = ref('');
+const currentPassword = ref('');
+const nextRotation = ref(0);
+const rotationCountdown = ref('');
+const passwordTicker = ref(null);
+const passwordSeed = ref('');
+const isSeedLoaded = ref(false);
+
+// 默认背景（请在此填入默认图片 URL）
+const DEFAULT_BACKGROUND_URL = '';
+
+const defaultBackground = DEFAULT_BACKGROUND_URL
+    ? `url('${DEFAULT_BACKGROUND_URL}')`
+    : 'linear-gradient(135deg, #e0e7ff 0%, #fef3c7 100%)';
+
+const backgroundStyle = computed(() => ({
+  backgroundImage: defaultBackground,
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+  backgroundAttachment: 'fixed',
+  backgroundPosition: 'center'
+}));
+
+// 樱花数量
+const sakuraPetals = Array.from({ length: 18 }, (_, index) => index);
+
+// ===== 访问密码相关 =====
+const normalizeSeed = () => (passwordSeed.value?.trim() || 'sakura-visit');
+
+const fetchPasswordSeed = async () => {
+  try {
+    const response = await fetch(PASSWORD_FILE_PATH, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`密码种子文件读取失败: ${response.status}`);
+    }
+    const data = await response.json();
+    passwordSeed.value = typeof data?.seed === 'string' ? data.seed : '';
+  } catch (err) {
+    console.error('加载访问密码种子失败，已使用默认种子:', err);
+    passwordSeed.value = '';
+  } finally {
+    isSeedLoaded.value = true;
+  }
+};
+
+const generatePassword = () => {
+  const seed = normalizeSeed();
+  const slot = Math.floor(Date.now() / PASSWORD_INTERVAL_MS);
+  const raw = `${seed}-${slot}`;
+  const hashValue = [...raw].reduce((acc, char, index) => acc + char.charCodeAt(0) * (index + 3), 0);
+  return hashValue.toString(36).slice(-6).toUpperCase();
+};
+
+const updateCountdown = () => {
+  const now = Date.now();
+  const remaining = Math.max(0, nextRotation.value - now);
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  rotationCountdown.value = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const updatePassword = (showNotice = false) => {
+  const newPassword = generatePassword();
+  const hasRotated = currentPassword.value && newPassword !== currentPassword.value;
+
+  currentPassword.value = newPassword;
+  const currentSlot = Math.floor(Date.now() / PASSWORD_INTERVAL_MS);
+  nextRotation.value = (currentSlot + 1) * PASSWORD_INTERVAL_MS;
+  updateCountdown();
+
+  if (hasRotated && isAuthenticated.value) {
+    isAuthenticated.value = false;
+    passwordInput.value = '';
+    passwordError.value = '';
+    if (showNotice) {
+      showToast('访问密码已更新，请重新输入', 'error');
+    }
+  }
+};
+
+const startPasswordTicker = () => {
+  if (!isSeedLoaded.value) return;
+  updatePassword();
+  if (passwordTicker.value) {
+    clearInterval(passwordTicker.value);
+  }
+  passwordTicker.value = setInterval(() => {
+    const computedPassword = generatePassword();
+    if (computedPassword !== currentPassword.value) {
+      updatePassword(true);
+    } else {
+      updateCountdown();
+    }
+  }, 15000);
+};
+
+const handleLogin = () => {
+  passwordError.value = '';
+  if (passwordInput.value.trim().toUpperCase() === currentPassword.value) {
+    isAuthenticated.value = true;
+    showToast('验证成功，欢迎访问', 'success');
+  } else {
+    passwordError.value = '密码错误，请重试';
+  }
+};
 
 const OVERVIEW_DEVICE = {
   device: 'summary',
@@ -180,11 +294,16 @@ onMounted(async () => {
   }
 
   setupAutoRefresh();
+  await fetchPasswordSeed();
+  startPasswordTicker();
 });
 
 onUnmounted(() => {
   if (refreshInterval.value) {
     clearInterval(refreshInterval.value);
+  }
+  if (passwordTicker.value) {
+    clearInterval(passwordTicker.value);
   }
 });
 </script>
@@ -231,17 +350,38 @@ onUnmounted(() => {
   </div>
 
   <!-- 实际内容：只在配置加载完成后显示 -->
-  <div v-else class="bg-gray-100 min-h-screen rounded-lg dark:bg-[#1e2022]">
-    <div class="max-w-7xl mx-auto px-4">
+  <div v-else class="min-h-screen relative overflow-hidden" :style="backgroundStyle">
+    <div class="absolute inset-0 bg-gradient-to-br from-white/50 via-white/20 to-blue-200/30 dark:from-slate-950/70 dark:via-slate-900/70 dark:to-indigo-950/60"></div>
+    <div class="sakura" aria-hidden="true">
+      <span v-for="petal in sakuraPetals" :key="petal" class="sakura__petal" :style="{ '--sakura-offset': petal + 1 }"></span>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 relative z-10 pb-10">
       <Header></Header>
+
+      <div class="flex flex-wrap gap-4 mb-6">
+        <div class="glass-tile p-4 flex items-center gap-3 shadow-lg border border-white/30 dark:border-white/5">
+          <div class="h-10 w-10 rounded-full bg-pink-100/80 dark:bg-pink-900/40 flex items-center justify-center shadow-inner">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 11c0-3 2.5-3 2.5-5a2.5 2.5 0 10-5 0c0 2 2.5 2 2.5 5m0 0v1m-3.5 4h7a2 2 0 002-2.5l-1-4a2 2 0 00-2-1.5h-3a2 2 0 00-2 1.5l-1 4A2 2 0 008.5 16z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">访问受保护</p>
+            <div class="flex items-center gap-3 mt-1">
+              <span class="text-sm text-gray-700 dark:text-gray-200">密码每 10 分钟更新，请输入你持有的口令。</span>
+            </div>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">距离下一次刷新：{{ rotationCountdown }}</p>
+          </div>
+        </div>
+      </div>
 
       <div class="flex flex-col lg:flex-row gap-6 pb-6">
         <!-- 左侧模块区 -->
         <div class="space-y-6">
           <!-- 设备统计卡片 -->
-          <div v-if="showDeviceCount" class="bg-white rounded-lg not-dark:shadow-md p-6 dark:bg-[#181a1b]">
+          <div v-if="showDeviceCount" class="glass-card p-6">
             <div class="grid grid-cols-2 gap-4">
-              <div class="border border-gray-200 dark:border-[#384456] rounded-lg p-4 text-center not-dark:shadow-md">
+              <div class="glass-tile p-4 text-center">
                 <h3 class="text-gray-500 text-sm font-medium flex items-center justify-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -250,7 +390,7 @@ onUnmounted(() => {
                 </h3>
                 <p class="text-2xl font-bold mt-2">{{ devices.filter(d => d.device !== 'summary').length }}</p>
               </div>
-              <div class="border border-gray-200 dark:border-[#384456] rounded-lg p-4 text-center not-dark:shadow-md">
+              <div class="glass-tile p-4 text-center">
                 <h3 class="text-gray-500 text-sm font-medium flex items-center justify-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
@@ -302,7 +442,7 @@ onUnmounted(() => {
 
         <!-- 右侧统计 -->
         <div class="flex-1 min-w-0">
-          <div class="bg-white rounded-lg not-dark:shadow-md p-6 sticky top-40 dark:bg-[#181a1b]">
+          <div class="glass-card p-6 sticky top-40 relative overflow-hidden">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-semibold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -361,6 +501,47 @@ onUnmounted(() => {
 
       <Footer :client-ip="clientIp"></Footer>
     </div>
+
+    <transition name="fade">
+      <div v-if="!isAuthenticated" class="auth-overlay">
+        <div class="auth-panel glass-card p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="h-12 w-12 rounded-2xl bg-indigo-100/80 dark:bg-indigo-900/30 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600 dark:text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm2-10a4 4 0 118 0v2H8v-2z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">访问受保护</p>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">请输入当前访问密码</h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">密码每 10 分钟轮换，请输入你掌握的口令。</p>
+            </div>
+          </div>
+
+          <div class="space-y-2 mb-3">
+            <label class="text-sm text-gray-600 dark:text-gray-300" for="password-input">访问密码</label>
+            <input
+                id="password-input"
+                v-model="passwordInput"
+                @keyup.enter="handleLogin"
+                type="password"
+                class="w-full px-3 py-2 rounded-lg border border-white/60 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                placeholder="输入当前密码"
+            />
+            <p v-if="passwordError" class="text-sm text-red-500">{{ passwordError }}</p>
+          </div>
+
+          <div class="bg-indigo-50/70 dark:bg-indigo-900/30 border border-indigo-200/70 dark:border-indigo-800/40 rounded-xl px-4 py-3 mb-4">
+            <p class="text-xs text-indigo-600 dark:text-indigo-200">密码每 10 分钟自动变化</p>
+            <p class="text-[11px] text-indigo-500 dark:text-indigo-200/80 mt-1">距离下一次刷新：{{ rotationCountdown }}</p>
+          </div>
+
+          <div class="flex items-center justify-end gap-3">
+            <button @click="handleLogin" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-500 transition-colors shadow-md">进入</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -445,5 +626,123 @@ onUnmounted(() => {
   opacity: 0;
   max-height: 0;
   transform: translateY(-10px);
+}
+
+.sakura {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.sakura__petal {
+  position: absolute;
+  top: -10%;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #ffb7c5 35%, #f7adc0 50%, #e58aaa 70%, rgba(255, 183, 197, 0.2) 100%);
+  border-radius: 65% 35% 70% 30%;
+  filter: drop-shadow(0 4px 10px rgba(235, 99, 135, 0.35));
+  animation: sakura-fall linear infinite;
+  opacity: 0.85;
+}
+
+.sakura__petal::after,
+.sakura__petal::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  border-radius: inherit;
+  opacity: 0.7;
+}
+
+.sakura__petal::before {
+  transform: rotate(40deg) scale(0.8);
+  left: -30%;
+}
+
+.sakura__petal::after {
+  transform: rotate(-30deg) scale(0.75);
+  right: -20%;
+}
+
+.sakura__petal:nth-child(odd) {
+  animation-duration: 14s;
+}
+
+.sakura__petal:nth-child(even) {
+  animation-duration: 18s;
+}
+
+.sakura__petal:nth-child(3n) {
+  animation-duration: 20s;
+  animation-delay: 1s;
+  transform: scale(0.9);
+}
+
+.sakura__petal:nth-child(5n) {
+  animation-duration: 16s;
+  animation-delay: 2s;
+  transform: scale(1.1);
+}
+
+.sakura__petal:nth-child(7n) {
+  animation-duration: 22s;
+  animation-delay: 3s;
+  transform: scale(0.8);
+}
+
+.sakura__petal:nth-child(n) {
+  left: calc(5% * var(--sakura-offset, 1));
+}
+
+@keyframes sakura-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotateZ(0deg) rotateY(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(-8vw, 50vh, 0) rotateZ(120deg) rotateY(40deg);
+  }
+  100% {
+    transform: translate3d(12vw, 110vh, 0) rotateZ(320deg) rotateY(140deg);
+    opacity: 0;
+  }
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  backdrop-filter: blur(12px);
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.5), transparent 40%),
+  radial-gradient(circle at 80% 0%, rgba(125, 211, 252, 0.4), transparent 35%),
+  rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 1.5rem;
+}
+
+.auth-panel {
+  max-width: 520px;
+  width: min(520px, 100%);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
+  border-radius: 22px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .auth-panel {
+    background: rgba(15, 23, 42, 0.75);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
 }
 </style>

@@ -43,7 +43,7 @@ const getBatteryTextClass = (level, isCharging) => {
 </script>
 
 <template>
-  <div class="bg-white rounded-lg not-dark:shadow-md p-6 dark:bg-[#181a1b]">
+  <div class="glass-card p-6">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-semibold flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
